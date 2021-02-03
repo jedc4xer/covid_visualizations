@@ -1,0 +1,172 @@
+<MainScreen1>:
+    label1: lab1
+    label2: lab2
+    button1: btn1
+    update_button: update_button
+    button3: btn3
+    button3b: btn3b
+            
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
+           
+            Color:
+                rgba: 0,.8,1,.7
+            
+            Ellipse:
+                pos: 135,25
+                size: self.width/1.5, self.height/5
+            
+        Label:
+            id: lab1
+            bold: True
+            pos_hint: {'x': .2,'top':1.15}
+            color: 0,0,0,1
+            text_size: self.size
+            halign: 'left'
+            font_size: 16
+            text: ""
+            
+        Label:
+            id: lab2
+            bold: True
+            pos_hint: {'x':.2,'top':1.11}
+            color: 0,0,0,1
+            text_size: self.size
+            halign: 'left'
+            font_size: 16
+            text: ""
+            
+        Button:
+            id: btn1
+            pos_hint: {'x':.7, 'y':.02}
+            size_hint: .2,.08
+            bold: True
+            text: "" if btn1.state == "normal" else "Loading..."
+            on_press: root.label1.text = 'Loading... Please Wait'
+            on_press: root.label2.text = 'This may take around a minute...'
+            on_release: root.btn1_call()
+            
+            
+        Button:
+            id: update_button
+            pos_hint: {'x':.5, 'y':.02}
+            size_hint: .2,.08
+            bold: True
+            text: "Update Data" if update_button.state == "normal" else "Updating..."
+            on_press: root.label1.text = 'Updating... Please Wait'
+            on_press: root.label2.text = 'This may take a few minutes'
+            on_release: root.update_button1()
+            
+        Button:
+            id: btn3
+            pos_hint: {'x':.3, 'y': .02}
+            size_hint: .2,.08
+            bold: True
+            text: "Graph US Data" if btn3.state == "normal" else "Graphing..."
+            on_press: root.label1.text = "Graphing Data... Please Wait"
+            on_release: root.label2.text = "This may take a few minutes"
+            on_release: root.btn3_call()
+            
+        Button:
+            id: btn3b
+            pos_hint: {'x':.1, 'y': .02}
+            size_hint: .2,.08
+            bold: True
+            text: "Other Options" if btn3b.state == "normal" else "..."
+            on_press: root.label1.text = "Getting More Options..."
+            on_press: root.label2.text = ""
+            on_release: root.manager.current = 'morescreen'
+            
+<MoreOptionsScreen>:
+    loc_labels: loc_label
+    loc_input: loc_input
+    pickbtn: pickbtn
+    
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
+        
+            Color:
+                rgba: 0,.8,1,.7
+
+            Ellipse:
+                pos: 55,175
+                size: self.width/1.5, self.height/1.5
+        
+        Label:
+            id: loc_label
+            pos_hint: {'center_x': .4, 'center_y': .7}
+            color: 0,0,0,1
+            size: self.texture_size
+            text_size: root.width/2, None
+            halign: 'center'
+            
+            #size: self.texture_size
+            #size_hint_y: None
+            #text_size: self.width/2, None
+            #valign: 'top'
+            #height: self.texture_size[1]
+            text: ""
+       
+        TextInput:
+            id: loc_input
+            pos_hint: {'x':.2, 'y': .8}
+            size_hint: .4, .05
+            hint_text: "What area would you like to focus on?"
+            on_text: root.process() 
+            
+        Button:
+            id: pickbtn
+            pos_hint: {'x':.25, 'y': .86}
+            size_hint: .3,.05
+            bold: True
+            text: "" if pickbtn.state == "normal" else "..."
+            on_release: root.manager.current = 'focusedscreen'
+            
+        Button: #MainMenu
+            pos_hint: {'x':.25, 'y': .20}
+            size_hint: .3,.05
+            bold: True
+            text: "Main Menu"
+            on_release: root.manager.current = 'mainscreen1'
+
+<FocusedScreen>:
+    foc_det_lab: foc_det_lab
+    
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
+        
+            Color:
+                rgba: 0,.8,1,.7
+
+            Ellipse:
+                pos: 150,150
+                size: self.width/2, self.height/2
+                
+        Label:
+            id: foc_det_lab
+            pos_hint: {'x':-.05, 'y': .42}
+            color: 0,0,0,1
+            size_hint_y: None
+            text_size: self.width/2, None
+            valign: 'middle'
+            height: self.texture_size[1]
+            text: ""
+            
+        Button: #MainMenu
+            pos_hint: {'x':.25, 'y': .20}
+            size_hint: .3,.05
+            bold: True
+            text: "Main Menu"
+            on_release: root.manager.current = 'mainscreen1'
