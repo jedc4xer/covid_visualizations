@@ -9,6 +9,7 @@ from kivy.properties import ObjectProperty
 from kivy.graphics import *
 from matplotlib import dates as dt
 from geopy.geocoders import Nominatim
+from kivy.uix.progressbar import ProgressBar
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -49,22 +50,6 @@ def get_updated_data():
         cases_deaths.append(df.values.tolist())
     return(cases_deaths)
         
-    ##################33 Delete
-    if 7 == 9:   
-        print("Getting State Level Data...")   
-
-        #MainScreen1.label2.text = "Getting State Level Data"
-        state_level_data = get_state_level_data(cases_deaths)
-        print("Getting Time Series State Level Data...")
-        time_series_state_level_data = get_time_series_state_level_data(cases_deaths)
-        print("Getting Time Series US Data...")
-        time_series_us_data = get_time_series_us_data(cases_deaths)
-        print("...Done")
-        cases_deaths.append(state_level_data)
-        cases_deaths.append(time_series_state_level_data)
-        cases_deaths.append(time_series_us_data)
-    
-    #################### Delete
 def save_compiled_data(cases_deaths):
     writer = pd.ExcelWriter(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/US COVID Data.xlsx", engine='xlsxwriter')
     tabs = ["US Cases","US Deaths","State Level Data","Time Series SL Data","Time Series US Data"]
@@ -550,7 +535,8 @@ class MainScreen1(Screen):
     def update_button1(self):
         threading.Thread(target=self.update_data).start()
             
-    def update_labels(self,string1,string2):
+    def update_labels(self,string1,string2,progress):
+        self.pbar.value = progress
         if string1 != None:
             self.label1.text = string1
         if string2 != None:
@@ -562,24 +548,24 @@ class MainScreen1(Screen):
         
         start = time.perf_counter()
         #test_function()
-        MainScreen1.update_labels(self,"Gathering and Calculating Data","Getting Updated Data from Database")
+        MainScreen1.update_labels(self,"Gathering and Calculating Data","Getting Updated Data from Database",10)
         cases_deaths = get_updated_data()
-        MainScreen1.update_labels(self,None,"Calculating State Level Data")
+        MainScreen1.update_labels(self,None,"Calculating State Level Data",20)
         state_level_data = get_state_level_data(cases_deaths)
-        MainScreen1.update_labels(self,None,"Calculating Time Series State Level Data")
+        MainScreen1.update_labels(self,None,"Calculating Time Series State Level Data",30)
         time_series_state_level_data = get_time_series_state_level_data(cases_deaths)
-        MainScreen1.update_labels(self,None,"Calculating Time Series US Data")
+        MainScreen1.update_labels(self,None,"Calculating Time Series US Data",40)
         time_series_us_data = get_time_series_us_data(cases_deaths)
         
-        MainScreen1.update_labels(self,"Compiling Data","Adding State Level Data")
+        MainScreen1.update_labels(self,"Compiling Data","Adding State Level Data",50)
         cases_deaths.append(state_level_data)
-        MainScreen1.update_labels(self,None,"Adding Time Series State Level Data")
+        MainScreen1.update_labels(self,None,"Adding Time Series State Level Data",63)
         cases_deaths.append(time_series_state_level_data)
-        MainScreen1.update_labels(self,None,"Adding Time Series US Data")
+        MainScreen1.update_labels(self,None,"Adding Time Series US Data",75)
         cases_deaths.append(time_series_us_data)
-        MainScreen1.update_labels(self,None,"Saving Compiled Data ...")
+        MainScreen1.update_labels(self,None,"Saving Compiled Data ...",90)
         compiled_dict_for_quick_load,sheets,last_date = save_compiled_data(cases_deaths)
-        MainScreen1.update_labels(self,"Update Completed",None)
+        MainScreen1.update_labels(self,"Update Completed",None,100)
         
         load_time = time.perf_counter() - start
         if load_time > 60:
@@ -611,7 +597,8 @@ class MoreOptionsScreen(Screen):
         self.loc_labels.text = "\n\n\n\n\n\n" + state_names
         
     def process(self):
-        global state_names, picked_state
+        global picked_state
+        state_names = get_state_names()
         text = self.loc_input.text 
         available_state_names = [x for x in get_state_names() if text.lower() in x.lower()]
         state_names = " | ".join(x for x in available_state_names)
@@ -619,6 +606,19 @@ class MoreOptionsScreen(Screen):
         self.pickbtn.text = str(available_state_names[0]) if len(available_state_names) == 1 else "Reduce to 1 Location"
         if len(available_state_names) == 1:
             picked_state = available_state_names[0]
+            
+    def build_favorites_list(self):
+        state_names = get_state_names()
+        text = self.loc_input.text
+        text = text.replace(", ",",")
+        split_text = text.split(",")
+        
+        available_state_names = [x for x in state_names if x not in split_text]
+        state_names1 = " | ".join(x for x in available_state_names)
+        already_picked = [x for x in split_text if x in state_names]
+        picked_states = "\n".join(x for x in already_picked)
+        self.loc_labels.text = "\n\n\n\n\n\n" + state_names1
+        self.favorites.text = "\n\n\n\n\n\n" + picked_states
     pass
          
 class FocusedScreen(Screen):

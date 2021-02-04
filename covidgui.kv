@@ -5,25 +5,27 @@
     update_button: update_button
     button3: btn3
     button3b: btn3b
+    pbar: pbar
             
     FloatLayout:
         canvas.before:
             Rectangle:
                 pos: self.pos
                 size: self.size
-                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
-           
-            Color:
-                rgba: 0,.8,1,.7
-            
-            Ellipse:
-                pos: 135,25
-                size: self.width/1.5, self.height/5
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background.jpg'
+                
+        ProgressBar:
+            id: pbar
+            pos_hint: {'x':.25, 'bottom': 1.25}
+            min: 0
+            max: 100
+            size_hint_x: .5
+            size_hint_y: .22
             
         Label:
             id: lab1
             bold: True
-            pos_hint: {'x': .2,'top':1.15}
+            pos_hint: {'x': .1,'top':1.17}
             color: 0,0,0,1
             text_size: self.size
             halign: 'left'
@@ -33,7 +35,7 @@
         Label:
             id: lab2
             bold: True
-            pos_hint: {'x':.2,'top':1.11}
+            pos_hint: {'x':.1,'top':1.12}
             color: 0,0,0,1
             text_size: self.size
             halign: 'left'
@@ -85,13 +87,14 @@
     loc_labels: loc_label
     loc_input: loc_input
     pickbtn: pickbtn
+    favorites: favorites
     
     FloatLayout:
         canvas.before:
             Rectangle:
                 pos: self.pos
                 size: self.size
-                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background.jpg'
         
             Color:
                 rgba: 0,.8,1,.7
@@ -107,12 +110,15 @@
             size: self.texture_size
             text_size: root.width/2, None
             halign: 'center'
+            text: ""
             
-            #size: self.texture_size
-            #size_hint_y: None
-            #text_size: self.width/2, None
-            #valign: 'top'
-            #height: self.texture_size[1]
+        Label:
+            id: favorites
+            pos_hint: {'x': .5, 'y': .2}
+            color: 0,0,0,1
+            size: self.texture_size
+            text_size: root.width/2, None
+            halign: 'left'
             text: ""
        
         TextInput:
@@ -120,7 +126,8 @@
             pos_hint: {'x':.2, 'y': .8}
             size_hint: .4, .05
             hint_text: "What area would you like to focus on?"
-            on_text: root.process() 
+            #on_text: root.process() 
+            on_text: root.build_favorites_list()
             
         Button:
             id: pickbtn
@@ -145,7 +152,7 @@
             Rectangle:
                 pos: self.pos
                 size: self.size
-                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background 1.jpg'
+                source: r'C://Users/jedba/Desktop/Python/COVID Data/COVID Background.jpg'
         
             Color:
                 rgba: 0,.8,1,.7
