@@ -10,12 +10,14 @@ from kivy.graphics import *
 from matplotlib import dates as dt
 from geopy.geocoders import Nominatim
 from kivy.uix.progressbar import ProgressBar
+from PIL import Image
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import pandas as pd
 import seaborn as sns
 import datetime as date
+import concurrent.futures
 import requests
 import time
 import winsound
@@ -25,16 +27,35 @@ Builder.load_file('covidgui.kv')
             
 last_date,load_time = False,False # notifies Kivy Class that data has not been loaded
 
+class InitInfo(): # This class sets the initial variables for the program
+    def initialize():
+        try:
+            last_date = pd.read_csv(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/Updated_Through.txt")
+            InitInfo.initialize.last_date = last_date.columns[0]
+        except:
+            InitInfo.initialize.last_date = "Unknown"
+        
+        try:
+            favorites = pd.read_csv(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/Favorites.txt")
+            InitInfo.initialize.favorites = favorites.columns
+        except:
+            InitInfo.initialize.favorites = None
+    
 # Load Existing Data from Excel File
-def load_database():
-    try:
-        covid_data = pd.read_excel(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/US COVID Data.xlsx",None)
-        sheets = [x for x in covid_data.keys()]
-        last_date = covid_data[sheets[0]]["UID"].values.tolist()[-1] # variable to print to screen label showing the last date for which data is available
-    except:
-        covid_data,sheets,last_date = False,False,"Failed"
-        print("Load Failed")
-    return(covid_data,sheets,last_date)
+class LoadData():
+    def load_database():
+        try:
+            covid_data = pd.read_excel(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/US COVID Data.xlsx",None)
+            sheets = [x for x in covid_data.keys()]
+            LoadData.load_database.is_loaded = True
+
+            #Delete this if unneeded last_date = covid_data[sheets[0]]["UID"].values.tolist()[-1] 
+            # variable to print to screen label showing the last date for which data is available
+        except:
+            covid_data,sheets = False,False
+            LoadData.load_database.is_loaded = False
+            print("Load Failed")
+        return(covid_data,sheets)
 
 # update data MAIN FUNCTION
 def get_updated_data():
@@ -145,19 +166,8 @@ def get_state_level_data(cases_deaths):
     overall_list.insert(0,columns)
     return(overall_list)
 
-def get_time_series_state_level_data(cases_deaths):
-    
-    cases_df, deaths_df,states = cases_deaths[0],cases_deaths[1],get_state_names()
-
-    time_series_list = []
-    date_list = ["Population","Date","Date"]
-    for x in range(12,len(deaths_df)):
-        date_list.append(deaths_df[x][0])
-    time_series_list.append(date_list)
-    
-    i1 = 0
-    size = len(states)
-    for state in states:
+class GetFunctions():
+    def build_overall_cases(state,cases_df,deaths_df):
         pop = 0 
         # get cases info
         overall_cases = []
@@ -173,9 +183,9 @@ def get_time_series_state_level_data(cases_deaths):
         overall_cases.insert(0,pop)
         overall_cases.insert(1,state)
         overall_cases.insert(2,"Cases")
-        time_series_list.append(overall_cases)
-        
-        # get death info
+        return(overall_cases,pop)
+    
+    def build_overall_deaths(state,pop,deaths_df):
         overall_deaths = []
         #time_series_list.append(state)
         for cnt in range(12,len(deaths_df)):
@@ -187,8 +197,9 @@ def get_time_series_state_level_data(cases_deaths):
         overall_deaths.insert(0,pop)
         overall_deaths.insert(1,state)
         overall_deaths.insert(2,"Deaths")
-        time_series_list.append(overall_deaths)
-        
+        return(overall_deaths)
+    
+    def build_overall_cpc(state,pop,cases_df):
         overall_cpc = []
         #time_series_list.append(state)
         for cnt in range(11,len(cases_df)):
@@ -201,9 +212,9 @@ def get_time_series_state_level_data(cases_deaths):
         overall_cpc.insert(0,pop)
         overall_cpc.insert(1,state)
         overall_cpc.insert(2,"Cases per 100,000")
-        time_series_list.append(overall_cpc)
-        
-        # get death info
+        return(overall_cpc)
+    
+    def build_overall_dpc(state,pop,deaths_df):
         overall_dpc = []
         #time_series_list.append(state)
         for cnt in range(12,len(deaths_df)):
@@ -216,6 +227,36 @@ def get_time_series_state_level_data(cases_deaths):
         overall_dpc.insert(0,pop)
         overall_dpc.insert(1,state)
         overall_dpc.insert(2,"Deaths per 100,000")
+        return(overall_dpc)
+        
+        
+def get_time_series_state_level_data(cases_deaths):
+    
+    cases_df, deaths_df, states = cases_deaths[0],cases_deaths[1],get_state_names()
+
+    time_series_list = []
+    date_list = ["Population","Date","Date"]
+    for x in range(12,len(deaths_df)):
+        date_list.append(deaths_df[x][0])
+    time_series_list.append(date_list)
+    
+    #function_list = [GetFunctions.build_overall_deaths,GetFunctions.build_overall_cpc,GetFunctions.build_overall_dpc]
+    #variables_list = [deaths_df,cases_df,deaths_df]
+        
+    i1 = 0
+    size = len(states)
+    for state in states:
+        overall_cases, pop = GetFunctions.build_overall_cases(state,cases_df,deaths_df)
+        overall_deaths = GetFunctions.build_overall_deaths(state,pop,deaths_df)
+        overall_cpc = GetFunctions.build_overall_cpc(state,pop,cases_df)
+        overall_dpc = GetFunctions.build_overall_dpc(state,pop,deaths_df)
+        #with concurrent.futures.ThreadPoolExecutor() as executor:
+        #    results = [executor.submit(function_list[i],(state,pop,variables_list[i])) for i in range(len(function_list))]
+        #overall_deaths,overall_cpc,overall_dpc = results[0],results[1],results[2]
+        
+        time_series_list.append(overall_cases)
+        time_series_list.append(overall_deaths)        
+        time_series_list.append(overall_cpc)
         time_series_list.append(overall_dpc)        
         
         cpd = []
@@ -477,9 +518,20 @@ def plot_data(dataset,locale):
         g.set(xlabel = None)
         fig.autofmt_xdate()
         plt.title(locale + " " + col,{'fontsize': 18})
-    file_name = (r"C://Users/jedba/Desktop/Python/COVID Data/US Visualizations/Covid-Graph " + locale + " " + str(date.datetime.now()).split()[0])
+    name_specs = locale + " " + str(date.datetime.now()).split()[0]
+    file_name = (r"C://Users/jedba/Desktop/Python/COVID Data/US Visualizations/Covid-Graph " + name_specs)
     plt.savefig(file_name)    
-    return
+        
+    return(name_specs + '.png')
+
+def combine_graphs(sources):
+    im_for_size = Image.open(r"C://Users/jedba/Desktop/Python/COVID Data/US Visualizations/Covid-Graph " + sources[0])#.convert('png')
+    combined = Image.new(im_for_size.mode,(im_for_size.width * len(sources),im_for_size.height))
+    for i,x in enumerate(sources):
+        file_name = (r"C://Users/jedba/Desktop/Python/COVID Data/US Visualizations/Covid-Graph " + x)
+        img = Image.open(file_name)#.convert('png')
+        combined.paste(img,(i * img.width,0))
+    return(combined)
 
 def isolate_state_from_time_series(state):
     state_level_dataset = covid_data["Time Series SL Data"]
@@ -498,39 +550,38 @@ class MainScreen1(Screen):
     button3 = ObjectProperty(None)
     
     def on_enter(self):
-        global covid_data,sheets,last_date,load_time
-        
-        if load_time:
-            if last_date == "Failed":
-                self.button1.text = "Unavailable"
-                self.label1.text = "Loading Failed"
-                self.label2.text = "Check the source file"
-            else:
-                self.button1.text = "Reload Data"
-                self.label1.text = "Updated thru " + str(last_date)
-                self.label2.text = str(load_time) + " to load data"
-        else:
+        try:
+            InitInfo.initialize()
+            last_date = InitInfo.initialize.last_date
             try:
-                last_date = pd.read_csv(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/Updated_Through.txt")
-                last_date = last_date.columns[0]
+                if LoadData.load_database.is_loaded == True:
+                    self.last_update.text = "\n Last Updated: " + str(last_date) + "\n Data Loaded"
+                    self.label1.text = ""
+                    self.label2.text = "Data Successfully Loaded"
+                else:
+                    self.last_update.text = "\n Last Updated: " + str(last_date) + "\n Data Not Loaded"
             except:
-                last_date = "Unknown"
-            self.button1.text = "Load Data"
-            self.label1.text = "No Data Loaded...Data has been updated through " + str(last_date)
-            self.label2.text = "Please Load or Update the Data"
-               
-    def btn1_call(instance):
-        global covid_data,sheets,last_date,load_time
+                self.last_update.text = "\n Last Updated: " + str(last_date) + "\n Data Not Loaded"
+                self.label1.text = "No Data has been loaded"
+                self.label2.text = "Please Load or Update the Data"
+        except:
+            self.label1.text = "Initialization Variables Failed"
+            
+        try:
+            favorites = InitInfo.initialize.favorites
+        except:
+            favorites = None
+            
+    def load_button(self):
+        global covid_data,sheets,load_time
         start = time.perf_counter()
-        covid_data,sheets,last_date = load_database()
+        covid_data,sheets = LoadData.load_database()
+        
         duration = 1000  # milliseconds
-        freq = 185 # Hz
+        freq = 200 # Hz
         winsound.Beep(freq, duration)
         load_time = time.perf_counter() - start
-        if load_time > 60:
-            load_time = str(round(load_time/60,2)) + " minutes"
-        else:
-            load_time = str(round(load_time,2)) + " seconds"
+        self.on_enter()
             
     def update_button1(self):
         threading.Thread(target=self.update_data).start()
@@ -572,6 +623,8 @@ class MainScreen1(Screen):
             load_time = str(round(load_time/60,2)) + " minutes"
         else:
             load_time = str(round(load_time,2)) + " seconds"
+            
+        self.last_update.text = "\n Last Updated: " + str(last_date)
         self.label2.text = "Excel File has been updated in " + load_time
         
         
@@ -591,10 +644,12 @@ class MoreOptionsScreen(Screen):
     pickbtn = ObjectProperty(None)
     
     def on_enter(self):
+        print(InitInfo.initialize.favorites)
         available_state_names = [x for x in get_state_names()]
         state_names = " | ".join(x for x in available_state_names)
         self.pickbtn.text = "Choose Below"
         self.loc_labels.text = "\n\n\n\n\n\n" + state_names
+        self.commit_favorites.pos_hint = {'x': -10}
         
     def process(self):
         global picked_state
@@ -611,14 +666,39 @@ class MoreOptionsScreen(Screen):
         state_names = get_state_names()
         text = self.loc_input.text
         text = text.replace(", ",",")
+        if "," in text:
+            self.commit_favorites.pos_hint = {'x': .7}
+        else: 
+            self.commit_favorites.pos_hint = {'x': -10}
         split_text = text.split(",")
         
         available_state_names = [x for x in state_names if x not in split_text]
         state_names1 = " | ".join(x for x in available_state_names)
-        already_picked = [x for x in split_text if x in state_names]
-        picked_states = "\n".join(x for x in already_picked)
+        ap = MoreOptionsScreen.build_favorites_list.already_picked = [x for x in split_text if x in state_names]
+        picked_states = "\n".join(x for x in ap)
         self.loc_labels.text = "\n\n\n\n\n\n" + state_names1
         self.favorites.text = "\n\n\n\n\n\n" + picked_states
+        
+    def commit_to_favorites(self):
+        favorites = ",".join(x for x in MoreOptionsScreen.build_favorites_list.already_picked)
+        updated_date_file = open(r"C://Users/jedba/Desktop/Python/COVID Data/COVID Datasets/Favorites.txt","w+")
+        updated_date_file.write(favorites)
+       
+    def graph_favorites(self):
+        global covid_data
+        favorites = InitInfo.initialize.favorites
+        favorites = favorites.values.tolist()
+        returned_graphs = []
+        for state in favorites:
+            isolated_state = isolate_state_from_time_series(state)
+            isolated_state.columns = [x for x in isolated_state.iloc[0].values]
+            isolated_state = isolated_state.drop(2)
+            returned_graphs.append(plot_data(isolated_state, state))
+        
+        combined = combine_graphs(returned_graphs)
+            
+        file_name = (r"C://Users/jedba/Desktop/Python/COVID Data/US Visualizations/Covid-Graph " + "Favorites" + " " + str(date.datetime.now()).split()[0] + ".png")
+        combined.save(file_name)    
     pass
          
 class FocusedScreen(Screen):

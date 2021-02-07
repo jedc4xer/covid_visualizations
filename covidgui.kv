@@ -6,6 +6,7 @@
     button3: btn3
     button3b: btn3b
     pbar: pbar
+    last_update: last_update
             
     FloatLayout:
         canvas.before:
@@ -16,6 +17,7 @@
                 
         ProgressBar:
             id: pbar
+            color: .55,0,0,1
             pos_hint: {'x':.25, 'bottom': 1.25}
             min: 0
             max: 100
@@ -42,15 +44,24 @@
             font_size: 16
             text: ""
             
+        Label: 
+            id: last_update
+            bold: True
+            color: 0,0,0,1
+            text_size: self.size 
+            halign: 'left'
+            valign: 'top'
+            font_size: 16
+            
         Button:
             id: btn1
             pos_hint: {'x':.7, 'y':.02}
             size_hint: .2,.08
             bold: True
-            text: "" if btn1.state == "normal" else "Loading..."
+            text: "Load Data" if btn1.state == "normal" else "Loading..."
             on_press: root.label1.text = 'Loading... Please Wait'
             on_press: root.label2.text = 'This may take around a minute...'
-            on_release: root.btn1_call()
+            on_release: root.load_button()
             
             
         Button:
@@ -88,6 +99,7 @@
     loc_input: loc_input
     pickbtn: pickbtn
     favorites: favorites
+    commit_favorites: commit_favorites
     
     FloatLayout:
         canvas.before:
@@ -136,6 +148,22 @@
             bold: True
             text: "" if pickbtn.state == "normal" else "..."
             on_release: root.manager.current = 'focusedscreen'
+            
+        Button:
+            id: graph_favorites
+            pos_hint: {'x':.25, 'y': .92}
+            size_hint: .3,.05
+            bold: True
+            text: "Graph Favorites" if graph_favorites.state == "normal" else "..."
+            on_release: root.graph_favorites()
+            
+        Button:
+            id: commit_favorites
+            pos_hint: {'y': .80}
+            size_hint: .2,.05
+            bold: True
+            text: "Save Favorites" if pickbtn.state == "normal" else "..."
+            on_release: root.commit_to_favorites()
             
         Button: #MainMenu
             pos_hint: {'x':.25, 'y': .20}
