@@ -8,9 +8,15 @@ from kivy.uix.widget import Widget
 from kivy.properties import ObjectProperty
 from kivy.graphics import *
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.spinner import Spinner
 
 from concurrent.futures import ThreadPoolExecutor as Executor
+from PIL import Image
+from matplotlib import dates as dt
 
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import seaborn as sns
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
@@ -34,12 +40,13 @@ class InitInfo:
     
     def __init__(self):
         try: 
-            self.last_date = pd.read_csv("Updated_Through.txt").columns[0]
+            self.last = [x for x in pd.read_csv("Updated_Through.txt").columns]
+            self.last[1], self.last[2] = f'{int(self.last[1]):,}',f'{int(self.last[2]):,}'
         except:
-            self.last_date = "Unknown"
+            self.last = ["Unknown"] * 3
         
         try:
-            self.favorites = pd.read_csv("Favorites.txt").columns
+            self.favorites = pd.read_csv("Favorites.txt").columns.values.tolist()
             self.fav_loaded = "True"
         except:
             self.favorites = "Unknown"
@@ -53,13 +60,13 @@ class InitInfo:
             self.load_times = []
             
     def ret_last_updated(self):
-        return(self.last_date)
+        return(self.last)
         
     def ret_variables(self):
-        return(self.last_date,self.favorites,self.fav_loaded)
+        return(self.last,self.favorites,self.fav_loaded)
     
     def ret_average_load_time(self):
-        print(self.load_times_actual)
+        #print(self.load_times_actual)
         return round(self.load_times_actual.mean(),2) if len(self.load_times) > 2 else ""
     
     def ret_load_times(self):
@@ -68,7 +75,7 @@ class InitInfo:
 class SaveAndClose:
     
     def __init__(self):
-        self.load_times = LoadData().return_state_level().load_times
+        self.load_times = LoadData().return_data().load_times
         
     def save_load_times(self):
         self.load_times = pd.DataFrame(self.load_times)
@@ -76,45 +83,55 @@ class SaveAndClose:
         
 class LoadData():
     
-    def __init__(self):
-        self.start = True
-        LoadData.load_data.is_loaded = False
-        pass
+    def __init__(self,which_data):
+        self.which_data = which_data
+        self.start = None
+        self.data = None
+        self.is_loaded = False
     
     def load_data(self):
-        LoadData.load_data.start = time.perf_counter()
         try:
-            #LoadData.load_data.covid_data = pd.read_excel("US COVID Data.xlsx",sheet_name = ["State Level Data","Time Series SL Data",
-                                                                                                   #"Time Series US Data"])
-            LoadData.load_data.covid_data = pd.read_csv("StateLevelData.csv")
-            LoadData.load_data.is_loaded = True
+            self.start = time.perf_counter()
+            print(f'Timer Started: {self.start}')
+            if self.which_data == 'Time Series State Level':
+                self.which_data = 'Time Series SL Data'
+            options = ['State Level Data','Time Series SL Data','Time Series US Data','US Cases','US Deaths']
+            if self.which_data not in options:
+                assert 1 == 0
+            skip = 1 if self.which_data == 'State Level Data' else 0
+            self.data = pd.read_csv(self.which_data + '.csv',skiprows = skip)
+            self.is_loaded = True
+            print("load passed")
         except:
-            LoadData.load_data.is_loaded = False
+            self.is_loaded = False
+            print("load failed")
             
     def ret_state_of_data(self):
-        return LoadData.load_data.is_loaded
+        return self.is_loaded
             
-    def return_state_level(self):
-        #self.data_for_display = LoadData.load_data.state_level_data["State Level Data"].sort_values("Cases_per_capita", ascending = False)[['State',
-                                                                                                          # 'Cases_per_capita',
-                                                                                                          # 'Deaths_per_capita','Population',
-                                                                                                         #  'Longitude', 'Latitude']]
-        self.data_for_display = LoadData.load_data.covid_data.sort_values("Cases_per_capita", ascending = False)[['State',
-                                                                                                          'Cases_per_capita',
-                                                                                                          'Deaths_per_capita','Population',
-                                                                                                          'Longitude', 'Latitude']]
-        print(self.data_for_display)
-        load_time = time.perf_counter() - LoadData.load_data.start
+    def return_data(self,which_data):
+        if 'Time Series' in which_data:
+            sort_on = 'Date'
+            ascend = True
+        else:
+            sort_on = "Cases_per_capita"
+            ascend = False
+
+        self.data_for_display = self.data #.sort_values(sort_on, ascending = ascend)#[['State',
+                                                                                                       #   'Cases_per_capita',
+                                                                                                        #  'Deaths_per_capita','Population',
+                                                                                                         # 'Longitude', 'Latitude','Code']]
+        print(f'Time Variable Check: {self.start}')
+        load_time = time.perf_counter() - self.start
         load_times = InitInfo().ret_load_times()
         load_times.append(["Loading",load_time])
-        print(load_times)
         load_times = pd.DataFrame(load_times,columns = ["Method","Time"])
         load_times.to_csv("load_times.csv", index = False)
         return(self.data_for_display)
     
     def data_return(self):
         pass
-    
+
 class UpdateData():
     
     def __init__(self):
@@ -143,13 +160,19 @@ class UpdateData():
         tabs = ["US Cases","US Deaths","State Level Data","Time Series SL Data","Time Series US Data"]
         for i,each_list in enumerate(UpdateData.start_update.cases_deaths):
             print(f'Compiling {tabs[i]}')
+            if i == 3:
+                each_list = each_list[2:]
+            if i == 4:
+                each_list = each_list[1:]
             headers = [x for x in each_list[0]]
+            if i in [3,4]:
+                each_list = each_list[1:]
             each_list = pd.DataFrame(each_list,columns = [x for x in headers])
-            if i == 0:
-                last_date = each_list['UID'].values.tolist()[-1]
+            if i == 4:
+                last_data = [each_list[_].values.tolist()[-1] for _ in ['Date','Cases','Deaths']]
             each_list.to_csv(tabs[i] + '.csv', index = False)
         updated_date_file = open("Updated_Through.txt","w+")
-        updated_date_file.write(last_date)
+        updated_date_file.write(",".join(str(x) for x in last_data))
         print("Finished with CSV Files...")
         
 class GetFunctions():
@@ -283,7 +306,7 @@ class GetFunctions():
                 y = x
             cpd.insert(0,pop)
             cpd.insert(1,state)
-            cpd.insert(2,"Cases Per Day")
+            cpd.insert(2,state + " Cases Per Day")
             time_series_list.append(cpd)
 
             dpd = []
@@ -295,7 +318,7 @@ class GetFunctions():
                 y = x
             dpd.insert(0,pop)
             dpd.insert(1,state)
-            dpd.insert(2,"Deaths Per Day")
+            dpd.insert(2,state + " Deaths Per Day")
             time_series_list.append(dpd)
 
             ma7_c = []
@@ -312,7 +335,7 @@ class GetFunctions():
                     #ma7_c.append(x)
             ma7_c.insert(0,pop)
             ma7_c.insert(1,state)
-            ma7_c.insert(2,"New Cases 7 Day Moving Average")
+            ma7_c.insert(2,state + " New Cases 7 Day Moving Average")
             time_series_list.append(ma7_c)
 
             ma7_d = []
@@ -329,7 +352,7 @@ class GetFunctions():
                     #ma7_d.append(x)
             ma7_d.insert(0,pop)
             ma7_d.insert(1,state)
-            ma7_d.insert(2,"New Deaths 7 Day Moving Average")
+            ma7_d.insert(2,state + " New Deaths 7 Day Moving Average")
             time_series_list.append(ma7_d)
 
             d2c_ratio = []
@@ -345,7 +368,7 @@ class GetFunctions():
 
             d2c_ratio.insert(0,pop)
             d2c_ratio.insert(1,state)
-            d2c_ratio.insert(2,"Case Fatality Rate")
+            d2c_ratio.insert(2,state + " Case Fatality Rate")
             time_series_list.append(d2c_ratio)
             i1 += 1
 
@@ -512,7 +535,7 @@ class BuildFunctions():
             overall_cases.append(cases)
         overall_cases.insert(0,pop)
         overall_cases.insert(1,state)
-        overall_cases.insert(2,"Cases")
+        overall_cases.insert(2,state + " Cases")
         return(overall_cases,pop)
     
     def build_overall_deaths(state,pop,deaths_df):
@@ -525,7 +548,7 @@ class BuildFunctions():
             overall_deaths.append(deaths)
         overall_deaths.insert(0,pop)
         overall_deaths.insert(1,state)
-        overall_deaths.insert(2,"Deaths")
+        overall_deaths.insert(2,state + " Deaths")
         return(overall_deaths)
     
     def build_overall_cpc(state,pop,cases_df):
@@ -539,7 +562,7 @@ class BuildFunctions():
             overall_cpc.append(cpc)
         overall_cpc.insert(0,pop)
         overall_cpc.insert(1,state)
-        overall_cpc.insert(2,"Cases per 100,000")
+        overall_cpc.insert(2,state + " Cases per 100,000")
         return(overall_cpc)
     
     def build_overall_dpc(state,pop,deaths_df):
@@ -553,58 +576,20 @@ class BuildFunctions():
             overall_dpc.append(dpc)
         overall_dpc.insert(0,pop)
         overall_dpc.insert(1,state)
-        overall_dpc.insert(2,"Deaths per 100,000")
+        overall_dpc.insert(2,state + " Deaths per 100,000")
         return(overall_dpc)
-   
-    
-        
-        
-    # Save Compiled Data to Excel File
-    def save_compiled_data(cases_deaths):
-        writer = pd.ExcelWriter(program_path + "US COVID Data.xlsx", engine='xlsxwriter')
-        tabs = ["US Cases","US Deaths","State Level Data","Time Series SL Data","Time Series US Data"]
-        compiled_dict_for_quick_load = {}
-        for i,each_list in enumerate(cases_deaths):
-            print("Compiling",tabs[i])
-            headers = [x for x in each_list[0]]
-            each_list = pd.DataFrame(each_list,columns = [x for x in headers])
-            if i < 2:
-                each_list.to_excel(writer, sheet_name = tabs[i],index = False)#,header = None)
-                compiled_dict_for_quick_load[tabs[i]] = each_list
-            elif i == 2:
-                each_list.to_excel(writer, sheet_name = tabs[i],index = False)
-                compiled_dict_for_quick_load[tabs[i]] = each_list
-            else:
-                each_list.to_excel(writer, sheet_name = tabs[i],index = False)#,header = None)
-                compiled_dict_for_quick_load[tabs[i]] = each_list
-
-        writer.save()
-        
-        UpdateData.save_compiled_data.compiled_dict_for_quick_load = compiled_dict_for_quick_load
-        UpdateData.save_compiled_data.sheets = [x for x in compiled_dict_for_quick_load.keys()]
-        last_date = compiled_dict_for_quick_load[sheets[0]]["UID"].values.tolist()[-1]
-        updated_date_file = open(program_path + "Updated_Through.txt","w+")
-        updated_date_file.write(last_date)
-        print("Finished with Excel File...")
-        return(last_date)
-
-############END UPDATE BLOCK#####################
-#################################################
-#################################################
-
     
 class DataVisualizations():
     
     def __init__(self, data):
         self.data = data
-        self.last_date = InitInfo().ret_last_updated()
-    
+        self.last = InitInfo().ret_last_updated()
+        
     def visualize_geo(self):
         print("starting")
         df = self.data
-        df['text'] = df['State'] + "<br>Cases Per Capita<br>" + (round(df['Cases_per_capita'],2).astype(str))
+        df['text'] = "Cases Per 100K<br>" + df['State']
         limits = [(0,len(df))]
-        print(limits)
         colors = ["royalblue"]
         scale = min([x for x in df['Cases_per_capita'] if x > 0])
 
@@ -613,7 +598,6 @@ class DataVisualizations():
         for i in range(1):
             lim = limits[i]
             df_sub = df[lim[0]:lim[1]]
-            print(df_sub)
             fig.add_trace(go.Scattergeo(
                 locationmode = 'USA-states',
                 lon = df_sub['Longitude'],
@@ -642,122 +626,254 @@ class DataVisualizations():
         print("Map Written")
         
     def visualize_geo_choro(self):
-        print("starting")
+        
         df = self.data
-        df['text'] = df['State'] + "<br>Cases Per Capita<br>" + (round(df['Cases_per_capita'],2).astype(str))
+        df['text'] = df['State'] + "<br>Cases Per 100K<br>" + round(df['Cases_per_capita'],2).astype(str)
+        #Try '{:,.2f}'
         
         fig = go.Figure(data = go.Choropleth(
-            locations = df['code'],
+            locations = df['Code'],
             z = df['Cases_per_capita'],
             locationmode = 'USA-states',
-            colorscale = 'rdylgn_r',
-            colorbar_title = 'Cases Per Capita',
+            colorscale = 'rdylgn_r', # _r is colorscale reversed
+            colorbar_title = 'Cases Per 100K',
             hovertext = df['text']
         ))        
                   
         fig.update_layout(
-                title_text = 'US COVID Cases<br>Data: ' + self.last_date +'<br>Cases Per Capita',
+                title_text = 'US COVID Cases<br>Data: ' + self.last[0] +'<br>Cases Per 100K',
                 showlegend = False,
                 geo = dict(
                     scope = 'usa',
                 )
             )
         
-        print("Checkpoint C")
         fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_Case_Map.html")
         print("Map Written")
-# GUI Scripting ------------
-# --------------------------
         
+    def plot_data(self,locale):
+        data_cols = [x for x in self.data.columns if locale in x or x == 'Date']
+        dataset = self.data[[x for x in data_cols]]
+        
+        try:
+            dates = dataset.Date.values.tolist()
+        except:   
+            dataset.columns = [x for x in dataset.iloc[1].values]
+            dataset = dataset.drop(0)
+            dataset = dataset.drop(1)
+            dates = dataset.Date.values.tolist()
+        sns.set_style("ticks", {"xtick.major.size": 8, "ytick.major.size": 8})
+
+        df1 = dataset
+        variables = [x for x in df1.columns[1:]]
+        n=len(variables)
+        fig,ax = plt.subplots(n,1, figsize=(20,n*5), sharex=True)
+        for i in range(n):
+            plt.sca(ax[i])
+            col = variables[i]
+            print(col)
+            g = sns.barplot(x = dataset["Date"], y = dataset[col])
+            g.xaxis.set_major_locator(ticker.MultipleLocator(12))
+            g.xaxis.set_major_formatter(dt.DateFormatter("%d-%b"))
+            g.xaxis.grid(True)
+            if max(dataset[col]) < 1:
+                g.yaxis.set_major_formatter(ticker.StrMethodFormatter('{x:.0%}'))
+            else:
+                g.yaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+            g.set(ylabel = None)
+            fig.autofmt_xdate()
+            plt.title(col,{'fontsize': 18})
+        name_specs = locale + " " + str(date.datetime.now()).split()[0]
+        save_path = (r"Graphs/" + "Covid-Graph " + name_specs)
+        plt.savefig(save_path)
+
+        return(name_specs + '.png')
+    
+    def interactive_plot(self,data_choice):
+        fig = px.bar(self.data, x='Date', y=data_choice,
+        hover_data=['Date', 'Cases','Deaths'], color='New Cases 7 Day Moving Average',
+        labels={'US COVID Data':'Data 1'}, height=400)
+        fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_US_Chart.html")
+    
+    def combine_graphs(self,sources):
+        im_for_size = Image.open(r"Graphs/" + "Covid-Graph " + sources[0])
+        combined = Image.new(im_for_size.mode,(im_for_size.width * len(sources),im_for_size.height))
+        for i,x in enumerate(sources):
+            save_path = (r"Graphs/" + "Covid-Graph " + x)
+            img = Image.open(save_path)
+            combined.paste(img,(i * img.width,0))
+        return(combined)
+    
+    ############## GUI Python Control #####################
+    #######################################################
+
 class HomeScreen(Screen):
     
     def on_enter(self):
+        self.pbar.pos_hint = {'x':.25, 'top': -10}
         threading.Thread(target = self.get_initial).start()
-        
-    def load_thread(self):
-        threading.Thread(target = self.return_state_level).start()
-        
+   
     def reload_screen(self):
         threading.Thread(target = self.get_initial).start()
-        
-    def geo_viz_thread(self):
-        threading.Thread(target = self.geo_viz).start()
-        
+     
     def update_thread(self):
         threading.Thread(target = self.update_data).start()
+        
+    def update_labels(self,string1,progress):
+        self.pbar.value = progress
+        if string1 != None:
+            self.statuslabel2.text = string1
+        return
 
     def get_initial(self):
-        print("\n\nHere again...\n\n")
-        self.last_date, self.favorites, self.fav_loaded = InitInfo().ret_variables()
-        self.average_load_time = InitInfo().ret_average_load_time()
-        self.is_data_loaded = LoadData().ret_state_of_data()
-        if not self.is_data_loaded:
-            print("Checkpoint A")
-            self.statuslabel1.text = f"\n\n\n Data Through: {self.last_date}\n Please Load Data\n Average Load Time: {self.average_load_time} seconds"
-            self.loadbutton.x_pos = {'x': .4, 'y': .82}
-            self.updatebutton.x_pos = {'x': .4, 'y': .75}
-            self.graphbutton.pos_hint = {'x': -10, 'y': .68} 
-        else:
-            print("Checkpoint B")
-            self.statuslabel1.text = f"\n\n\n Data Through: {self.last_date}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds"
-            self.loadbutton.x_pos = {'x': .4, 'y': .82}
-            self.updatebutton.x_pos = {'x': .4, 'y': .75}
-            self.graphbutton.pos_hint = {'x': -10, 'y': .68}
-            
-    def return_state_level(self):
-        self.statuslabel1.text = f"\n\n\n Data Through: {self.last_date}\n Loading Data...\n Average Load Time: {self.average_load_time} seconds"
-        self.loadbutton.x_pos = {'x': -10, 'y': .82}
-        self.updatebutton.x_pos = {'x': -10, 'y': .75}
-        self.graphbutton.pos_hint = {'x': -10, 'y': .68}
-            
-        LoadData().load_data()
-        self.sl_data = LoadData().return_state_level()
-        self.statuslabel1.text = f"\n\n\n Data Through: {self.last_date}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds"
-        self.toptenlabel.text = "\n\n\nCases Per Capita Top 10  \n" + "\n".join(x + " " for x in self.sl_data["State"].head(10))
-        self.loadbutton.x_pos = {'x': -10, 'y': .82}
-        self.updatebutton.x_pos = {'x': .4, 'y': .75}
-        self.graphbutton.pos_hint = {'x': .4, 'y': .68}        
-        
-    def geo_viz(self):
-        DataVisualizations(LoadData.load_data.covid_data).visualize_geo_choro()
+        self.last = InitInfo().ret_last_updated()
+        self.statuslabel1.text = f"\n Data Through: {self.last[0]}\n US Cases: {self.last[1]}\n US Deaths: {self.last[2]}"
    
     def update_data(self): 
         
         start = time.perf_counter()
-        #test_function()
-        #MainScreen1.update_labels(self,"Gathering and Calculating Data","Getting Updated Data from Database",10)
+        label_list = ['Downloading Data...','DONE\n','Consolidating State Level Data...','DONE\n','Consolidating Time Series State Level Data...','DONE\n',
+                      'Consolidating Time Series US Data...','DONE\n','Saving Data...','DONE\n','Performance Recording...','DONE\nUpdate Completed']
+        self.pbar.pos_hint = {'x':.25, 'top': 1.08}
+
+        self.update_labels(label_list[0],14.3)
         UpdateData().start_update()
-        print('Passed 1')
-        #MainScreen1.update_labels(self,None,"Calculating State Level Data",20)
+        self.update_labels("".join(x for x in label_list[:1]),28.59)
+
         GetFunctions().get_state_level_data()
-        print('Passed 2')
-        #MainScreen1.update_labels(self,None,"Calculating Time Series State Level Data",30)
+        self.update_labels("".join(x for x in label_list[:3]),42.8)
+
         GetFunctions().get_time_series_state_level_data()
-        print('Passed 3')
-        #MainScreen1.update_labels(self,None,"Calculating Time Series US Data",40)
+        self.update_labels("".join(x for x in label_list[:5]),57.1)
+
         GetFunctions().get_time_series_us_data()
-        print('Passed 4')
-        
+        self.update_labels("".join(x for x in label_list[:7]),71.4)
+
         UpdateData().save_compiled_data_to_csv()
-        print('Passed 5')
-        #MainScreen1.update_labels(self,"Update Completed",None,93)
+        self.update_labels("".join(x for x in label_list[:9]),85.7)
         
         load_time = time.perf_counter() - start
         if load_time > 60:
             load_time = str(round(load_time/60,2)) + " minutes"
         else:
             load_time = str(round(load_time,2)) + " seconds"
+        
+        self.update_labels("".join(x for x in label_list) + "\nTime Elapsed: " + load_time,100)
+        self.statuslabel1.text = f"\n Data Through: {self.last[0]}\n US Cases: {self.last[1]}\n US Deaths: {self.last[2]}\n - Data Loaded -"
+
+class VisualizationScreen(Screen):
+    # This is the Python part of the Visualization Screen 
+    # which holds all of the data visualization options
+    # in one screen for simplicity.
+    
+    def on_enter(self):
+        self.thread_manager(self.get_initial)
+        pass
+    
+    ############### Thread Manager ########################
+    #######################################################
+    
+    def thread_manager(self,option):
+        # create_choropleth_map, 
+        threading.Thread(target = option).start()
+        
+    ############### Base Functions ########################
+    #######################################################
+    
+    def get_initial(self):
+        self.last, self.favorites, self.fav_loaded = InitInfo().ret_variables()
+        self.average_load_time = InitInfo().ret_average_load_time()
+        try:
+            self.is_data_loaded = self.Loader.ret_state_of_data()
+            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds"
+        except:
+            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n Please Load Data\n Average Load Time: {self.average_load_time} seconds"
             
-        self.last_update.text = "\n Last Updated: " + str(last_date)
-        self.label2.text = "Excel File has been updated in " + load_time
+    def return_data(self):
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n Loading Data...\n Average Load Time: {self.average_load_time} seconds"
+            
+        self.Loader.load_data()
+        self.data = self.Loader.return_data(self.load_spinner.text)
+        self.Visualizer = DataVisualizations(self.data) # Initialize Visualizations Class
+        if self.load_spinner.text in ["Time Series SL Data","Time Series US Data"]:
+            self.data_spinner_init()
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds"        
         
-        #self.load_method()
-        duration = 1000  # milliseconds
-        freq = 185 # Hz
-        winsound.Beep(freq, duration)
+    def update_labels(self,string1,progress):
+        if progress == None:
+            self.pbar2.value = 0
+            self.pbar2.pos_hint = {'x':.25, 'top': -10}
+        else:
+            self.pbar2.value = progress
+        if string1 != None:
+            self.statuslabelviz.text = string1
+        return
+    
+    ############### Callback Functions ####################
+    #######################################################
+    
+    def load_spinner_state(self): # Callback for load_spinner
+        print(f'Data Choice: {self.load_spinner.text}')
+        options = ['State Level Data','Time Series State Level','Time Series US Data','US Cases','US Deaths']
+        if self.load_spinner.text in options:
+            self.Loader = LoadData(self.load_spinner.text)
+            self.thread_manager(self.return_data)
+        else:
+            self.load_spinner.text = "ERROR - Unknown"
+                
+    def viz_type(self): # Callback for viz_spinner
+        t = self.viz_spinner.text
+        self.thread_manager(self.create_choropleth_map) if t == 'Intensity Map' else None
+        if t in ['Static Graphs','Interactive Graphs']:
+            self.viz_style_spinner.pos_hint = {'x': .30, 'y': .68}  
+            
+    def viz_style(self): # Callback for viz_style_spinner
+        t1 = self.viz_spinner.text
+        t2 = self.viz_style_spinner.text
+        if t2 in ['Column','Other']:
+            self.thread_manager(self.graph_favorites) if t1 == 'Static Graphs' and t2 == 'Column' else None
+            self.thread_manager(self.create_interactive_plot) if t1 == 'Interactive Graphs' and t2 == 'Column' else None
+        else:
+            print(f'You have chosen to create a {self.viz_style_spinner.text} in a {self.viz_spinner.text} chart,\nhowever this option is not currently available.')
+     
+    def data_spinner_init(self):
+        self.data_focus_spinner.pos_hint = {'x': .51, 'y': .68}
+        self.data_focus_spinner.values = [x for x in self.data.columns[1:]]
         
+    def focus_data(self):
+        print(self.data_focus_spinner.text)
+        
+    ############### Visualization Initiators ##############
+    #######################################################
+    
+    def create_interactive_plot(self):
+        if self.data_focus_spinner.text in [x for x in self.data.columns[1:]]:
+            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Creating Interactive Plot *"  
+            self.Visualizer.interactive_plot(self.data_focus_spinner.text)
+            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Interactive Plot Finished *"  
+    
+    def create_choropleth_map(self):
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Map Loading... *"  
+        self.Visualizer.visualize_geo_choro()
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Map Succesfully Loaded *"   
+    
+    def graph_favorites(self):
+        self.pbar2.pos_hint = {'x':.25, 'top': 1.08}
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Graphing Favorited Locations *"  
+        self.toptenlabel.text = '\nGraphing Favorites: \n' + "\n".join(x + " " for x in self.favorites)
+        returned_graphs = []
+        for i,state in enumerate(self.favorites):
+            self.update_labels(f'Graphing {state}: {i+1} of {len(self.favorites)}',((i+1)/len(self.favorites))*100)
+            returned_graphs.append(self.Visualizer.plot_data(state))
+        self.update_labels(f'{len(self.favorites)} graphs have been built - now compiling',None)
+        combined = self.Visualizer.combine_graphs(returned_graphs)    
+        save_path = (r"Graphs/" + "Covid-Graph " + "Favorites" + " " + str(date.datetime.now()).split()[0] + ".png")
+        combined.save(save_path)
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Favorites Graph Completed *"  
+ 
 sm = ScreenManager(transition=WipeTransition())
 sm.add_widget(HomeScreen(name = 'homescreen'))  
+sm.add_widget(VisualizationScreen(name = 'vizscreen'))  
     
 class covidgui(App):
     
@@ -768,10 +884,3 @@ class covidgui(App):
 if __name__=='__main__':
     covidgui().run()
     
-    
-    
-    
-# Helpful printout buffer
-#buffer = " "
-#while len(buffer) + len(str(overall[0])) < len(state) + len("Deaths") - 1:
-#buffer = buffer + " "

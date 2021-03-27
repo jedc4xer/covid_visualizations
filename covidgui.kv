@@ -1,9 +1,9 @@
 <HomeScreen>:
     statuslabel1: statuslabel1
+    statuslabel2: statuslabel2
     updatebutton: updatebutton
-    loadbutton: loadbutton
     graphbutton: graphbutton
-    toptenlabel: toptenlabel
+    pbar: pbar
             
     FloatLayout:
         canvas.before:
@@ -20,10 +20,87 @@
             halign: 'center'
             valign: 'top'
             font_size: 22
-            text: "\nCOVID DATA Program"
+            markup: True
+            text: "\nCOVID DATA Program\n[size=14]* Main Menu *[/size]"
             
         Label: 
             id: statuslabel1
+            bold: True
+            color: 1,0,1,1
+            text_size: self.size
+            halign: 'left'
+            valign: 'top'
+            font_size: 16
+            
+        Label: 
+            id: statuslabel2
+            bold: True
+            color: 1,0,1,1
+            text_size: self.size
+            halign: 'center'
+            valign: 'bottom'
+            font_size: 16
+            
+        Button: 
+            id: updatebutton
+            bold: True
+            size_hint: .2,.06
+            pos_hint: {'x': .4, 'y': .8}
+            background_color: 1,1,0,.3
+            color: 1,1,1,1
+            text: "Update Data"
+            on_release: root.update_thread()
+            
+        Button: 
+            id: graphbutton
+            bold: True
+            size_hint: .2,.06
+            pos_hint: {'x': .4, 'y': .73}
+            background_color: 1,1,0,.3
+            color: 1,1,1,1
+            text: "Visualizations"
+            on_release: root.manager.current = 'vizscreen'
+            
+        ProgressBar:
+            id: pbar
+            color: .55,0,0,1
+            min: 0
+            max: 100
+            size_hint_x: .5
+            size_hint_y: .22
+            
+<VisualizationScreen>:
+    welcomelabel2: welcomelabel2
+    statuslabel1b: statuslabel1b
+    toptenlabel: toptenlabel
+    statuslabelviz: statuslabelviz
+    load_spinner: load_spinner
+    viz_spinner: viz_spinner
+    viz_style_spinner: viz_style_spinner
+    data_focus_spinner: data_focus_spinner
+    pbar2: pbar2
+    homebutton: homebutton
+
+    FloatLayout:
+        canvas.before:
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                source: 'COVID_Program/COVID Background.jpg'
+                
+        Label:
+            id: welcomelabel2
+            bold: True
+            color: 1,1,1,1
+            text_size: self.size
+            halign: 'center'
+            valign: 'top'
+            font_size: 22
+            markup: True
+            text: "\nCOVID DATA Program\n[size=14]* Visualizations Menu *[/size]"
+            
+        Label: 
+            id: statuslabel1b
             bold: True
             color: 1,0,1,1
             text_size: self.size
@@ -40,32 +117,73 @@
             valign: 'top'
             font_size: 16
             
-        Button: 
-            id: updatebutton
+        Label: 
+            id: statuslabelviz
+            bold: True
+            color: 1,0,1,1
+            text_size: self.size
+            halign: 'center'
+            valign: 'bottom'
+            font_size: 16
+            
+        Spinner:
+            id: load_spinner
             bold: True
             size_hint: .2,.06
+            size: 100, 44
+            background_color: 1,1,0,.3
+            pos_hint: {'x': .30, 'y': .75}
+            text: 'Load Data'
+            values: 'State Level Data','Time Series State Level','Time Series US Data','US Cases','US Deaths'
+            on_text: root.load_spinner_state()
+                
+        Spinner:
+            id: viz_spinner
+            bold: True
+            size_hint: .2,.06
+            size: 100, 44
+            background_color: 1,1,0,.3
+            pos_hint: {'x': .51, 'y': .75}
+            text: 'Visualize Data'
+            values: 'Static Graphs','Interactive Graphs','Intensity Map','Data Point Map','Tables'
+            on_text: root.viz_type()
+            
+        Spinner:
+            id: viz_style_spinner
+            bold: True
+            size_hint: .2,.06
+            size: 100, 44
+            background_color: 1,1,0,.3
+            pos_hint: {'x': -10, 'y': .75}
+            text: 'Graph Type'
+            values: 'Column','Line','Scatterplot','Heatmap'
+            on_text: root.viz_style()
+            
+        Spinner:
+            id: data_focus_spinner
+            bold: True
+            size_hint: .2,.06
+            size: 100, 44
+            background_color: 1,1,0,.3
+            pos_hint: {'x': -10, 'y': .68}
+            text: 'Data Focus'
+            on_text: root.focus_data()
+            
+        Button: 
+            id: homebutton
+            bold: True
+            size_hint: .2,.05
             pos_hint: {'x': .4, 'y': .82}
-            background_color: 0,0,1,.25
+            background_color: 1,1,0,.3
             color: 1,1,1,1
-            text: "Update Database"
-            on_release: root.update_thread()
+            text: "Main Menu"
+            on_release: root.manager.current = 'homescreen'
             
-        Button: 
-            id: loadbutton
-            bold: True
-            size_hint: .2,.06
-            pos_hint: {'x': .4, 'y': .75}
-            background_color: 0,0,1,.25
-            color: 1,1,1,1
-            text: "Load Database"
-            on_release: root.load_thread()
-            
-        Button: 
-            id: graphbutton
-            bold: True
-            size_hint: .2,.06
-            pos_hint: {'y': .68}
-            background_color: 0,0,1,.25
-            color: 1,1,1,1
-            text: "Visualize Data"
-            on_release: root.geo_viz()
+        ProgressBar:
+            id: pbar2
+            color: .55,0,0,1
+            min: 0
+            max: 100
+            pos_hint: {'x':.25, 'top': -10}
+            size_hint_x: .5
+            size_hint_y: .22
