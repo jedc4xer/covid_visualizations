@@ -621,7 +621,7 @@ class DataVisualizations():
             )
         #fig.show()
         print("Checkpoint C")
-        fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_Case_Map.html")
+        fig.write_html(r"YOUR PATH HERE")
         print("Map Written")
         
     def visualize_geo_choro(self):
@@ -647,7 +647,7 @@ class DataVisualizations():
                 )
             )
         
-        fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_Case_Map.html")
+        fig.write_html(r"YOUR PATH HERE")
         print("Map Written")
         
     def plot_data(self,locale):
@@ -698,7 +698,7 @@ class DataVisualizations():
                                 'x':0.5,
                                 'xanchor': 'center',
                                 'yanchor': 'top'})
-        fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_US_Chart.html")
+        fig.write_html(r"YOUR PATH HERE")
     
     def combine_graphs(self,sources):
         im_for_size = Image.open(r"Graphs/" + "Covid-Graph " + sources[0])
