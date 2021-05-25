@@ -1,3 +1,9 @@
+import kivy
+kivy.require('2.0.0')
+
+from kivy.config import Config
+Config.set('kivy', 'exit_on_escape', '0')
+
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen, WipeTransition
@@ -9,6 +15,7 @@ from kivy.properties import ObjectProperty
 from kivy.graphics import *
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.spinner import Spinner
+from kivy.core.window import Window
 
 from concurrent.futures import ThreadPoolExecutor as Executor
 from PIL import Image
@@ -27,16 +34,9 @@ import time
 import winsound
 
 Builder.load_file("covidgui.kv")
-
-# Map
-# 1. Is there any data?
-# 2. When was the data updated last?
-# 3. Does the file need to be updated?
-# 4. Have any favorites been saved? What are they?
-# 5. Display Information
-
+print("*********************\n\n\nTHIS PROGRAM IS NOT FULLY COMPLETE AND CERTAIN PATHS WILL RUN TO COMPLETION WHILE OTHERS WILL FAIL\n\n*******")
 # Initialize Environment Variables
-class InitInfo:
+class InitInfo():
     
     def __init__(self):
         try: 
@@ -55,9 +55,11 @@ class InitInfo:
         try:
             self.load_times_main = pd.read_csv("load_times.csv")
             self.load_times = self.load_times_main.values.tolist()
-            self.load_times_actual = self.load_times_main.Time      
+            self.load_times_actual = self.load_times_main.loc[self.load_times_main['Method'] == 'Loading'].Time
+            print(self.load_times_actual)
         except:
             self.load_times = []
+            print("Error with Load_times file")
             
     def ret_last_updated(self):
         return(self.last)
@@ -66,12 +68,12 @@ class InitInfo:
         return(self.last,self.favorites,self.fav_loaded)
     
     def ret_average_load_time(self):
-        #print(self.load_times_actual)
         return round(self.load_times_actual.mean(),2) if len(self.load_times) > 2 else ""
     
     def ret_load_times(self):
         return self.load_times
-    
+Initialize = InitInfo()
+
 class SaveAndClose:
     
     def __init__(self):
@@ -123,10 +125,10 @@ class LoadData():
                                                                                                          # 'Longitude', 'Latitude','Code']]
         print(f'Time Variable Check: {self.start}')
         load_time = time.perf_counter() - self.start
-        load_times = InitInfo().ret_load_times()
-        load_times.append(["Loading",load_time])
-        load_times = pd.DataFrame(load_times,columns = ["Method","Time"])
-        load_times.to_csv("load_times.csv", index = False)
+        #load_times = InitInfo.ret_load_times()
+        Initialize.load_times.append(["Loading",load_time])
+       # load_times = pd.DataFrame(load_times,columns = ["Method","Time"])
+       # load_times.to_csv("load_times.csv", index = False)
         return(self.data_for_display)
     
     def data_return(self):
@@ -169,7 +171,7 @@ class UpdateData():
                 each_list = each_list[1:]
             each_list = pd.DataFrame(each_list,columns = [x for x in headers])
             if i == 4:
-                last_data = [each_list[_].values.tolist()[-1] for _ in ['Date','Cases','Deaths']]
+                last_data = [each_list[_].values.tolist()[-1] for _ in ['Date','Cases','Deaths']] # This variable collects the most recent information so that it can be displayed on program start
             each_list.to_csv(tabs[i] + '.csv', index = False)
         updated_date_file = open("Updated_Through.txt","w+")
         updated_date_file.write(",".join(str(x) for x in last_data))
@@ -179,9 +181,7 @@ class GetFunctions():
     
     def __init__(self):
         self.cases_deaths = UpdateData().return_data()
-        #self.state_info = None
-    
-   # def state_name_loc(self): # hardcoded dictionary built from geopy.geocoders
+ 
         self.state_info = {'Alabama': {'Latitude': 33.258881699999996, 'Longitude': -86.8295337, 'code': 'AL'}, 'Alaska': {'Latitude': 64.44596130000001, 'Longitude': -149.680909, 'code': 'AK'}, 
                       'Arizona': {'Latitude': 34.395342, 'Longitude': -111.763275, 'code': 'AZ'}, 'Arkansas': {'Latitude': 35.2048883, 'Longitude': -92.4479108, 'code': 'AR'}, 
                       'California': {'Latitude': 36.7014631, 'Longitude': -118.755997, 'code': 'CA'}, 'Colorado': {'Latitude': 38.7251776, 'Longitude': -105.607716, 'code': 'CO'}, 
@@ -210,8 +210,7 @@ class GetFunctions():
                       'Washington': {'Latitude': 47.7511, 'Longitude': -120.7401, 'code': 'WA'}, 'District of Columbia': {'Latitude': 38.89379365, 'Longitude': -76.98799757, 'code': 'DC'}, 
                       'West Virginia': {'Latitude': 38.475840600000005, 'Longitude': -80.84084150000001, 'code': 'WV'}, 'Wisconsin': {'Latitude': 44.4308975, 'Longitude': -89.6884637, 'code': 'WI'}, 
                       'Wyoming': {'Latitude': 43.1700264, 'Longitude': -107.56853400000001, 'code': 'WY'}}
-        #return
-    
+  
     def get_state_level_data(self):
         
         #self.state_name_loc()
@@ -583,7 +582,7 @@ class DataVisualizations():
     
     def __init__(self, data):
         self.data = data
-        self.last = InitInfo().ret_last_updated()
+        self.last = Initialize.ret_last_updated()
         
     def visualize_geo(self):
         print("starting")
@@ -693,6 +692,12 @@ class DataVisualizations():
         fig = px.bar(self.data, x='Date', y=data_choice,
         hover_data=['Date', 'Cases','Deaths'], color='New Cases 7 Day Moving Average',
         labels={'US COVID Data':'Data 1'}, height=400)
+        fig.update_layout(title={
+                                'text': f'{locale} - {data_choice}',
+                                'y':0.9,
+                                'x':0.5,
+                                'xanchor': 'center',
+                                'yanchor': 'top'})
         fig.write_html(r"C:\Users\jedba\Desktop\Python\Jeds_Programs\COVID_Data\COVID_US_Chart.html")
     
     def combine_graphs(self,sources):
@@ -726,7 +731,7 @@ class HomeScreen(Screen):
         return
 
     def get_initial(self):
-        self.last = InitInfo().ret_last_updated()
+        self.last = Initialize.ret_last_updated()
         self.statuslabel1.text = f"\n Data Through: {self.last[0]}\n US Cases: {self.last[1]}\n US Deaths: {self.last[2]}"
    
     def update_data(self): 
@@ -753,11 +758,11 @@ class HomeScreen(Screen):
         self.update_labels("".join(x for x in label_list[:9]),85.7)
         
         load_time = time.perf_counter() - start
+        Initialize.load_times.append(["Updating",load_time])
         if load_time > 60:
             load_time = str(round(load_time/60,2)) + " minutes"
         else:
             load_time = str(round(load_time,2)) + " seconds"
-        
         self.update_labels("".join(x for x in label_list) + "\nTime Elapsed: " + load_time,100)
         self.statuslabel1.text = f"\n Data Through: {self.last[0]}\n US Cases: {self.last[1]}\n US Deaths: {self.last[2]}\n - Data Loaded -"
 
@@ -767,22 +772,25 @@ class VisualizationScreen(Screen):
     # in one screen for simplicity.
     
     def on_enter(self):
+        self.spinner_defaults = {'ls':'Load Data', 'vs': 'Visualize Data', 'vss': 'Graph Type',
+                                 'dfs': 'Data Focus', 'lcs': 'Specify Locale'}
+                              
         self.thread_manager(self.get_initial)
+        self.data_is_loaded = False
         pass
     
     ############### Thread Manager ########################
     #######################################################
     
     def thread_manager(self,option):
-        # create_choropleth_map, 
         threading.Thread(target = option).start()
         
     ############### Base Functions ########################
     #######################################################
     
     def get_initial(self):
-        self.last, self.favorites, self.fav_loaded = InitInfo().ret_variables()
-        self.average_load_time = InitInfo().ret_average_load_time()
+        self.last, self.favorites, self.fav_loaded = Initialize.ret_variables()
+        self.average_load_time = Initialize.ret_average_load_time()
         try:
             self.is_data_loaded = self.Loader.ret_state_of_data()
             self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds"
@@ -812,32 +820,59 @@ class VisualizationScreen(Screen):
     ############### Callback Functions ####################
     #######################################################
     
-    def load_spinner_state(self): # Callback for load_spinner
-        print(f'Data Choice: {self.load_spinner.text}')
-        options = ['State Level Data','Time Series State Level','Time Series US Data','US Cases','US Deaths']
-        if self.load_spinner.text in options:
-            self.Loader = LoadData(self.load_spinner.text)
+    def load_spinner_callback(self):
+        self.reset_spinner([self.viz_spinner,self.viz_style_spinner,self.data_focus_spinner,self.locale_spinner])
+        try:
+           # self.reset_spinner([self.viz_spinner,self.viz_style_spinner,self.data_focus_spinner,self.locale_spinner])
+            self.Loader = LoadData(self.load_spinner.text) # Reinitialize the Loader Class when the data changes
             self.thread_manager(self.return_data)
-        else:
-            self.load_spinner.text = "ERROR - Unknown"
-                
-    def viz_type(self): # Callback for viz_spinner
-        t = self.viz_spinner.text
-        self.thread_manager(self.create_choropleth_map) if t == 'Intensity Map' else None
-        if t in ['Static Graphs','Interactive Graphs']:
-            self.viz_style_spinner.pos_hint = {'x': .30, 'y': .68}  
-            
-    def viz_style(self): # Callback for viz_style_spinner
-        t1 = self.viz_spinner.text
-        t2 = self.viz_style_spinner.text
-        if t2 in ['Column','Other']:
-            self.thread_manager(self.graph_favorites) if t1 == 'Static Graphs' and t2 == 'Column' else None
-            self.thread_manager(self.create_interactive_plot) if t1 == 'Interactive Graphs' and t2 == 'Column' else None
-        else:
-            print(f'You have chosen to create a {self.viz_style_spinner.text} in a {self.viz_spinner.text} chart,\nhowever this option is not currently available.')
-     
+            self.viz_spinner.pos_hint = {'x': .4, 'y': .68}
+        except:
+            self.error_handling(message = 'Error Loading Data')
+        #dfso = [x for x in self.data.columns[1:]]
+    
+    def viz_spinner_callback(self):
+        vtso = ['Static Graphs','Interactive Graphs','Intensity Map','Data Point Map','Tables'] # vtso = viz_type_spinner_options
+        vs = self.viz_spinner.text
+        if vs == vtso[2]:
+            self.thread_manager(self.create_choropleth_map)
+            self.reset_spinner([self.viz_style_spinner,self.data_focus_spinner])
+        elif vs in vtso[0:2]:
+            self.viz_style_spinner.pos_hint = {'x': .4, 'y': .61}  
+        elif vs in vtso[-2:]:
+            self.statuslabelviz.text = f'{vs} is not yet functional'
+    
+    def viz_style_spinner_callback(self):
+        vsso = ['Column','Line','Scatterplot','Heatmap']  # vsso = viz_style_spinner_options
+        vs = self.viz_spinner.text
+        vss = self.viz_style_spinner.text
+        ls = self.load_spinner.text
+        if vss == vsso[0]:
+            if vs == 'Static Graphs':
+                self.thread_manager(self.graph_favorites)
+            if vs == 'Interactive Graphs':
+                self.data_focus_spinner.pos_hint = {'x': .4, 'y': .54}
+                self.data_focus_spinner.values = [x for x in self.data.columns[1:]]
+    
+    def data_focus_spinner_callback(self):
+        if self.load_spinner.text == 'Time Series State Level':
+            self.locale_spinner.pos_hint = {'x': .4, 'y': .47}
+            self.locale_spinner.values = [x for x in self.data.columns]
+    
+    def locale_choice_spinner_callback(self):
+        self.thread_manager(self.create_interactive_plot,self.locale_spinner.text)
+    
+    def error_handling(self,message):
+        self.statuslabelviz.text = message
+        
+    def reset_spinner(self,spinner_id):
+        for id in spinner_id:
+            print(str(id))
+            id.pos_hint = {'x': .4, 'y': -10}   
+            #id.text = self.spinner_defaults[str(id)]
+
     def data_spinner_init(self):
-        self.data_focus_spinner.pos_hint = {'x': .51, 'y': .68}
+        self.data_focus_spinner.pos_hint = {'x': .4, 'y': .54}
         self.data_focus_spinner.values = [x for x in self.data.columns[1:]]
         
     def focus_data(self):
@@ -847,10 +882,9 @@ class VisualizationScreen(Screen):
     #######################################################
     
     def create_interactive_plot(self):
-        if self.data_focus_spinner.text in [x for x in self.data.columns[1:]]:
-            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Creating Interactive Plot *"  
-            self.Visualizer.interactive_plot(self.data_focus_spinner.text)
-            self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Interactive Plot Finished *"  
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Creating Interactive Plot *"  
+        self.Visualizer.interactive_plot(self.data_focus_spinner.text)
+        self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Interactive Plot Finished *"  
     
     def create_choropleth_map(self):
         self.statuslabel1b.text = f"\n Data Through: {self.last[0]}\n - Data Loaded - \n Average Load Time: {self.average_load_time} seconds\n * Map Loading... *"  
@@ -874,13 +908,22 @@ class VisualizationScreen(Screen):
 sm = ScreenManager(transition=WipeTransition())
 sm.add_widget(HomeScreen(name = 'homescreen'))  
 sm.add_widget(VisualizationScreen(name = 'vizscreen'))  
-    
+
 class covidgui(App):
     
     def build(self):
         self.title = "COVID-19      Data Extraction & Visualization"
+        Window.bind(on_request_close = self.on_request_close)
         return sm
     
-if __name__=='__main__':
-    covidgui().run()
-    
+    def on_request_close(self,instance):
+        saving_load_times = pd.DataFrame(Initialize.load_times, columns = ["Method","Time"])
+        saving_load_times.to_csv("load_times.csv", index = False)
+        self.stop
+
+try:
+    if __name__=='__main__':
+        covidgui().run()
+except:
+    print("This program has not been fully completed and tested. Certain paths, such as the one you just took, will result in failure.")
+    self.stop
