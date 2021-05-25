@@ -6,8 +6,9 @@ from https://github.com/CSSEGISandData/COVID-19 that was referenced by the John 
 
 Data Attribution: JHU CSSE COVID-19 Data
 
-Other capabilities that are not yet implemented include: 
+Other capabilities that are not yet fully implemented include: 
  - Save a set of states for easy tracking by choosing them, and then saving the list to a file that is checked when the program loads. (Partially completed)
  - Display a table with summary statistics
  - Display heat maps, line graphs for a variety of data
  - Improve Graphical Display
+ - Clean up bugs
