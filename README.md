@@ -1,5 +1,5 @@
 # Covid Visualizations
-Visualize COVID Trends - (Working, but incomplete and still in development).
+Visualize COVID Trends - (Working, but incomplete and still in development) - Be careful of multiple threads that may not terminate.
 
 The goal of this project is to create a user-friendly program that can be used to download and visualize COVID trends based on data 
 from https://github.com/CSSEGISandData/COVID-19 that was referenced by the John Hopkins COVID tracking team.
